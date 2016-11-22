@@ -168,9 +168,9 @@ def elasticsearch(host, documents, queries):
 
 
 def postgresql(host, rows, queries):
-    """Insert rows and run search queries in posgresql.
+    """Insert rows and run search queries in postgresql.
 
-    :param host: PosgreSQL server location
+    :param host: PostgreSQL server location
     :type host: str
     :param rows: Rows to insert in the logs table
     :type count: list(dict(str))
@@ -271,7 +271,7 @@ def parse_arguments(argv):
     parser.add_argument(
         '-p', '--postgresql',
         default='127.0.0.1',
-        help='PosgreSQL connection string (%(default)r by default)',
+        help='PostgreSQL connection string (%(default)r by default)',
     )
 
     parser.add_argument(
