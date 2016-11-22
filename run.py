@@ -24,7 +24,6 @@ from sqlalchemy import (
     Table,
     create_engine,
     func,
-    select,
     text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -221,17 +220,23 @@ def postgresql(host, rows, queries):
 
     with Timer() as query_timer:
         for words in queries:
-            query = ' | '.join(words.split())
-            select_query = (
-                select([func.count()])
-                .select_from(table)
-                .where(
-                    func.to_tsvector('english', table.c.message)
-                    .match(query, postgresql_regconfig='english')
-                )
+            plain_query = ' | '.join(words.split())
+            select_query = text(
+                "SELECT ts_headline('english', message, query) "
+                "FROM ("
+                    "SELECT message, query "
+                    "FROM logs, to_tsquery('english', :plain_query) query "
+                    "WHERE vector @@ query "
+                    "ORDER BY ts_rank(vector, query) DESC "
+                    "LIMIT 1"
+                ") AS subquery"
             )
-            result = connection.execute(select_query)
-            logging.debug('%r -> %d hits', query, result.scalar())
+            result = connection.execute(
+                select_query,
+                {'plain_query': plain_query},
+            )
+            logging.debug('%r', plain_query)
+            logging.debug(pformat(result.first()))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
     return insert_timer, query_timer
 
