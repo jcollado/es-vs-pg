@@ -233,7 +233,7 @@ def postgresql(host, rows, queries):
                 "SELECT ts_headline('english', message, query) "
                 "FROM ("
                     "SELECT message, query "
-                    "FROM logs, to_tsquery('english', :plain_query) query "
+                    "FROM logs, to_tsquery('english', :plain_query) AS query "
                     "WHERE vector @@ query "
                     "ORDER BY ts_rank(vector, query) DESC "
                     "LIMIT 1"
