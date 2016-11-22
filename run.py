@@ -25,7 +25,9 @@ from sqlalchemy import (
     create_engine,
     func,
     select,
+    text,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.types import (
     TEXT,
     TIMESTAMP,
@@ -194,6 +196,7 @@ def postgresql(host, rows, queries):
         table_name, metadata,
         Column('timestamp', TIMESTAMP, nullable=False),
         Column('message', TEXT, nullable=False),
+        Column('vector', TSVECTOR, nullable=False),
     )
     Index(
         'message_index',
@@ -206,7 +209,10 @@ def postgresql(host, rows, queries):
     connection = engine.connect()
 
     logging.debug('Inserting %d rows...', len(rows))
-    insert_query = table.insert()
+    insert_query = text(
+        'INSERT INTO logs (timestamp, message, vector) '
+        'VALUES (:timestamp, :message, to_tsvector(:message))'
+    )
     with Timer() as insert_timer:
         connection.execute(insert_query, rows)
     logging.debug('Inserting took %f seconds', insert_timer.elapsed)
