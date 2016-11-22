@@ -230,21 +230,25 @@ def postgresql(host, rows, queries):
         for words in queries:
             plain_query = ' | '.join(words.split())
             select_query = text(
-                "SELECT ts_headline('english', message, query) "
-                "FROM ("
-                    "SELECT message, query "
+                "WITH matches AS ("
+                    "SELECT message, vector, query "
                     "FROM logs, to_tsquery('english', :plain_query) AS query "
-                    "WHERE vector @@ query "
-                    "ORDER BY ts_rank(vector, query) DESC "
-                    "LIMIT 1"
-                ") AS subquery"
+                    "WHERE vector @@ query"
+                ")"
+                "SELECT "
+                    "(SELECT COUNT(*) FROM matches) AS COUNT, "
+                    "ts_headline('english', message, query) "
+                "FROM matches "
+                "ORDER BY ts_rank(vector, query) DESC "
+                "LIMIT 1"
             )
             result = connection.execute(
                 select_query,
                 {'plain_query': plain_query},
             )
-            logging.debug('%r', plain_query)
-            logging.debug(pformat(result.first()))
+            total, highlight = result.first()
+            logging.debug('%r -> %d', plain_query, total)
+            logging.debug(pformat(highlight))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
     return insert_timer, query_timer
 
