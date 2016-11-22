@@ -10,6 +10,8 @@ import argparse
 import logging
 import sys
 
+from pprint import pformat
+
 from contexttimer import Timer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
@@ -141,15 +143,24 @@ def elasticsearch(host, documents, queries):
                 'query': {
                     'match': {
                         'message': query
-                    }
-                }
+                    },
+                },
+                'size': 1,
+                'highlight': {
+                    'fields': {
+                        'message': {},
+                    },
+                },
             }
             result = es.search(
                 index=index_name,
                 doc_type=document_type,
                 body=body,
             )
-            logging.debug('%r -> %d hits', query, result['hits']['total'])
+            total = result['hits']['total']
+            logging.debug('%r -> %d hits', query, total)
+            if total > 0:
+                logging.debug(pformat(result['hits']['hits'][0]['highlight']))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
     return index_timer, query_timer
 
