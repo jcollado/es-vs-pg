@@ -51,7 +51,7 @@ def main(argv=None):
         elasticsearch(args.elasticsearch, records, queries)
     )
     pg_insert_timer, pg_query_timer = (
-        postgresql(args.postgresql, records, queries)
+        postgresql(args.postgresql, records, queries, args.hits)
     )
     logging.info(
         'Summary:\n'
@@ -176,15 +176,17 @@ def elasticsearch(host, documents, queries):
     return index_timer, query_timer
 
 
-def postgresql(host, rows, queries):
+def postgresql(host, rows, queries, include_hits):
     """Insert rows and run search queries in postgresql.
 
     :param host: PostgreSQL server location
     :type host: str
     :param rows: Rows to insert in the logs table
     :type count: list(dict(str))
-    :type queries: Queries to execute
-    :param queries: list(str)
+    :param queries: Queries to execute
+    :type queries: list(str)
+    :param include_hits: Include hits in results
+    :type include_hits: bool
     :returns: Insert and query timers
     :rtype: tuple(contexttimer.Timer, contexttimer.Timer)
 
@@ -226,31 +228,49 @@ def postgresql(host, rows, queries):
 
     logging.debug('Running random search queries...')
 
+    if include_hits:
+        select_query = text(
+            "WITH matches AS ("
+                "SELECT message, query "
+                "FROM logs, to_tsquery('english', :plain_query) AS query "
+                "WHERE vector @@ query "
+                "ORDER BY ts_rank(vector, query) DESC "
+            ")"
+            "SELECT "
+                "(SELECT COUNT(*) FROM matches) AS count, "
+                "ts_headline('english', message, query) "
+            "FROM matches "
+            "LIMIT 1"
+        )
+    else:
+        select_query = text(
+            "SELECT ts_headline('english', message, query) "
+            "FROM ("
+                "SELECT message, query "
+                "FROM logs, to_tsquery('english', :plain_query) AS query "
+                "WHERE vector @@ query "
+                "ORDER BY ts_rank(vector, query) DESC "
+                "LIMIT 1"
+            ") AS subquery"
+        )
+
     with Timer() as query_timer:
         for words in queries:
             plain_query = ' | '.join(words.split())
-            select_query = text(
-                "WITH matches AS ("
-                    "SELECT message, vector, query "
-                    "FROM logs, to_tsquery('english', :plain_query) AS query "
-                    "WHERE vector @@ query"
-                ")"
-                "SELECT "
-                    "(SELECT COUNT(*) FROM matches) AS COUNT, "
-                    "ts_headline('english', message, query) "
-                "FROM matches "
-                "ORDER BY ts_rank(vector, query) DESC "
-                "LIMIT 1"
-            )
             result = connection.execute(
                 select_query,
                 {'plain_query': plain_query},
             ).fetchone()
-            if result:
-                total, highlight = result
+
+            if include_hits:
+                if result:
+                    total, highlight = result
+                else:
+                    total, highlight = 0, None
+                logging.debug('%r -> %d hits', plain_query, total)
             else:
-                total, highlight = 0, None
-            logging.debug('%r -> %d', plain_query, total)
+                highlight = result[0]
+                logging.debug('%r', plain_query)
             if highlight is not None:
                 logging.debug(pformat(highlight))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
@@ -299,6 +319,12 @@ def parse_arguments(argv):
         '-p', '--postgresql',
         default='127.0.0.1',
         help='PostgreSQL connection string (%(default)r by default)',
+    )
+
+    parser.add_argument(
+        '--hits',
+        action='store_true',
+        help='Include hits in results (only affects PostgreSQL)',
     )
 
     parser.add_argument(
