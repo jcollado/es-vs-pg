@@ -109,7 +109,7 @@ def elasticsearch(host, documents, queries):
 
     logging.debug('Connecting to elasticsearch in: %r', host)
     es = Elasticsearch(hosts=[host])
-    es.indices.delete(index=index_name, ignore=400)
+    es.indices.delete(index=index_name, ignore=404)
     es.indices.create(index=index_name)
 
     logging.debug('Indexing %d documents...', len(documents))
