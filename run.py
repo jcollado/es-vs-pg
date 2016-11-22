@@ -270,7 +270,7 @@ def parse_arguments(argv):
 
     parser.add_argument(
         '-p', '--postgresql',
-        default='127.0.0.',
+        default='127.0.0.1',
         help='PosgreSQL connection string (%(default)r by default)',
     )
 
@@ -278,14 +278,14 @@ def parse_arguments(argv):
         '--record-count',
         default=10000,
         type=int,
-        help='Number of records to insert (%(default)s by default',
+        help='Number of records to insert (%(default)s by default)',
     )
 
     parser.add_argument(
         '--query-count',
         default=10,
         type=int,
-        help='Number of queries to execute (%(default)s by default',
+        help='Number of queries to execute (%(default)s by default)',
     )
 
     log_levels = ['debug', 'info', 'warning', 'error', 'critical']
