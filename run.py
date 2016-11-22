@@ -45,14 +45,23 @@ def main(argv=None):
     args = parse_arguments(argv)
     configure_logging(args.log_level)
 
+    for record_count in args.record_count:
+        run_single_test(args, record_count)
+
+
+def run_single_test(args, record_count):
+    """Run a single test.
+
+    :param args: Command line arguments
+    :type args: argparse.Namespace
+    :param record_count: Number of records to insert in this run
+    :type record_count
+
+    """
     records, queries = generate_random_data(
-        args.record_count, args.query_count)
-    es_index_timer, es_query_timer = (
-        elasticsearch(args.elasticsearch, records, queries)
-    )
-    pg_insert_timer, pg_query_timer = (
-        postgresql(args.postgresql, records, queries, args.hits)
-    )
+        record_count, args.query_count)
+    es_timer = elasticsearch(args.elasticsearch, records, queries)
+    pg_timer = postgresql(args.postgresql, records, queries, args.hits)
     logging.info(
         'Summary:\n'
         'Elasticsearch:\n'
@@ -65,12 +74,12 @@ def main(argv=None):
         '- Query:\n'
         '  - Per query: %f\n'
         '  - Total: %f\n',
-        es_index_timer.elapsed,
-        es_query_timer.elapsed / args.query_count,
-        es_query_timer.elapsed,
-        pg_insert_timer.elapsed,
-        pg_query_timer.elapsed / args.query_count,
-        pg_query_timer.elapsed,
+        es_timer['index'].elapsed,
+        es_timer['query'].elapsed / args.query_count,
+        es_timer['query'].elapsed,
+        pg_timer['insert'].elapsed,
+        pg_timer['query'].elapsed / args.query_count,
+        pg_timer['query'].elapsed,
     )
 
 
@@ -122,7 +131,7 @@ def elasticsearch(host, documents, queries):
     :type queries: Queries to execute
     :param queries: list(str)
     :returns: Insert and query timers
-    :rtype: tuple(contexttimer.Timer, contexttimer.Timer)
+    :rtype: dict(str, contexttimer.Timer)
 
     """
     index_name = 'index'
@@ -173,7 +182,7 @@ def elasticsearch(host, documents, queries):
             if total > 0:
                 logging.debug(pformat(result['hits']['hits'][0]['highlight']))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
-    return index_timer, query_timer
+    return {'index': index_timer, 'query': query_timer}
 
 
 def postgresql(host, rows, queries, include_hits):
@@ -188,7 +197,7 @@ def postgresql(host, rows, queries, include_hits):
     :param include_hits: Include hits in results
     :type include_hits: bool
     :returns: Insert and query timers
-    :rtype: tuple(contexttimer.Timer, contexttimer.Timer)
+    :rtype: dict(str, contexttimer.Timer)
 
     """
     table_name = 'logs'
@@ -269,12 +278,13 @@ def postgresql(host, rows, queries, include_hits):
                     total, highlight = 0, None
                 logging.debug('%r -> %d hits', plain_query, total)
             else:
-                highlight = result[0]
+                if result:
+                    highlight = result[0]
                 logging.debug('%r', plain_query)
             if highlight is not None:
                 logging.debug(pformat(highlight))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
-    return insert_timer, query_timer
+    return {'insert': insert_timer, 'query': query_timer}
 
 
 def configure_logging(log_level):
@@ -327,11 +337,15 @@ def parse_arguments(argv):
         help='Include hits in results (only affects PostgreSQL)',
     )
 
+    default_record_count = [10000]
     parser.add_argument(
         '--record-count',
-        default=10000,
-        type=int,
-        help='Number of records to insert (%(default)s by default)',
+        default='10000',
+        help=(
+            'Comma separated list of number of records '
+            'to insert in each run ({!r} by default)'
+            .format(default_record_count)
+        ),
     )
 
     parser.add_argument(
@@ -352,6 +366,7 @@ def parse_arguments(argv):
               .format(', '.join(log_levels[:-1]), log_levels[-1])))
 
     args = parser.parse_args(argv)
+    args.record_count = map(int, args.record_count.split(','))
     args.log_level = getattr(logging, args.log_level.upper())
     return args
 
