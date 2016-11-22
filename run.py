@@ -245,10 +245,14 @@ def postgresql(host, rows, queries):
             result = connection.execute(
                 select_query,
                 {'plain_query': plain_query},
-            )
-            total, highlight = result.first()
+            ).fetchone()
+            if result:
+                total, highlight = result
+            else:
+                total, highlight = 0, None
             logging.debug('%r -> %d', plain_query, total)
-            logging.debug(pformat(highlight))
+            if highlight is not None:
+                logging.debug(pformat(highlight))
     logging.debug('Querying took %f seconds', query_timer.elapsed)
     return insert_timer, query_timer
 
