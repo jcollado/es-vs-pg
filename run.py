@@ -57,12 +57,20 @@ def main(argv=None):
         'Summary:\n'
         'Elasticsearch:\n'
         '- Index:  %f\n'
-        '- Query:  %f\n'
+        '- Query:\n'
+        '  - Per query: %f\n'
+        '  - Total: %f\n'
         'PostgreSQL:\n'
         '- Insert: %f\n'
-        '- Query:  %f\n',
-        es_index_timer.elapsed, es_query_timer.elapsed,
-        pg_insert_timer.elapsed, pg_query_timer.elapsed,
+        '- Query:\n'
+        '  - Per query: %f\n'
+        '  - Total: %f\n',
+        es_index_timer.elapsed,
+        es_query_timer.elapsed / args.query_count,
+        es_query_timer.elapsed,
+        pg_insert_timer.elapsed,
+        pg_query_timer.elapsed / args.query_count,
+        pg_query_timer.elapsed,
     )
 
 
