@@ -44,7 +44,8 @@ def main(argv=None):
     args = parse_arguments(argv)
     configure_logging(args.log_level)
 
-    records, queries = generate_random_data(args.count)
+    records, queries = generate_random_data(
+        args.record_count, args.query_count)
     es_index_timer, es_query_timer = (
         elasticsearch(args.elasticsearch, records, queries)
     )
@@ -64,16 +65,17 @@ def main(argv=None):
     )
 
 
-def generate_random_data(record_count):
+def generate_random_data(record_count, query_count):
     """Generate records/queries random data.
 
     :param record_count: Number of random records to generate
     :type record_count: int
+    :param query_count: Number of random queries to generate
+    :type query_count: int
     :returns: Random records and queries
     :type: tuple(list(dict(str)), list(str))
 
     """
-    query_count = 10
     words_per_query = 3
 
     fake = Factory.create()
@@ -273,10 +275,17 @@ def parse_arguments(argv):
     )
 
     parser.add_argument(
-        '-c', '--count',
+        '--record-count',
         default=10000,
         type=int,
         help='Number of records to insert (%(default)s by default',
+    )
+
+    parser.add_argument(
+        '--query-count',
+        default=10,
+        type=int,
+        help='Number of queries to execute (%(default)s by default',
     )
 
     log_levels = ['debug', 'info', 'warning', 'error', 'critical']
