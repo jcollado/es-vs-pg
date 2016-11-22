@@ -16,6 +16,7 @@ from contexttimer import Timer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 from faker import Factory
+from matplotlib import pyplot as plt
 from six.moves import range
 from sqlalchemy import (
     Column,
@@ -45,8 +46,19 @@ def main(argv=None):
     args = parse_arguments(argv)
     configure_logging(args.log_level)
 
+    results = {}
     for record_count in args.record_count:
-        run_single_test(args, record_count)
+        results[record_count] = run_single_test(args, record_count)
+
+    es_query = [
+        results[record_count]['es']['query'].elapsed / args.query_count
+        for record_count in args.record_count
+    ]
+    pg_query = [
+        results[record_count]['pg']['query'].elapsed / args.query_count
+        for record_count in args.record_count
+    ]
+    plot_results(args.record_count, es_query, pg_query)
 
 
 def run_single_test(args, record_count):
@@ -56,6 +68,8 @@ def run_single_test(args, record_count):
     :type args: argparse.Namespace
     :param record_count: Number of records to insert in this run
     :type record_count
+    :returns: Elasticsearch and PosgreSQL timers
+    :rtype: dict(str, dict(str, contexttimer.Timer))
 
     """
     records, queries = generate_random_data(
@@ -81,6 +95,29 @@ def run_single_test(args, record_count):
         pg_timer['query'].elapsed / args.query_count,
         pg_timer['query'].elapsed,
     )
+
+    return {'es': es_timer, 'pg': pg_timer}
+
+
+def plot_results(record_count, es_query, pg_query):
+    """Plot full-text search performance.
+
+    :param record_count:
+        Each of the record counts for which a test was executed
+    :type record_count: list(int)
+    :param es_query: ElasticSearch query times
+    :type es_query: list(int)
+    :param pg_query: PostgreSQL query times
+    :type pg_query: list(int)
+
+    """
+    plt.plot(record_count, es_query, label='Elasticsearch')
+    plt.plot(record_count, pg_query, label='PostgreSQL')
+    plt.title('Full-text search performance')
+    plt.xlabel('Record count')
+    plt.ylabel('Time (s)')
+    plt.legend(loc='upper left')
+    plt.show()
 
 
 def generate_random_data(record_count, query_count):
