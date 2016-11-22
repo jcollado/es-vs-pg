@@ -75,19 +75,27 @@ def generate_random_data(record_count):
     words_per_query = 3
 
     fake = Factory.create()
-    logging.debug('Generating %d random log messages...', record_count)
-    records = [
-        {
-            'timestamp': fake.iso8601(),
-            'message': fake.text()
-        }
-        for _ in range(record_count)
-    ]
+    logging.debug('Generating %d random log records...', record_count)
+    with Timer() as records_timer:
+        records = [
+            {
+                'timestamp': fake.iso8601(),
+                'message': fake.text()
+            }
+            for _ in range(record_count)
+        ]
+    logging.debug(
+        'Generating log records took %f seconds', records_timer.elapsed)
+
     logging.debug('Generating %d query arguments...', query_count)
-    queries = [
-        ' '.join(fake.words(nb=words_per_query))
-        for _ in range(query_count)
-    ]
+    with Timer() as queries_timer:
+        queries = [
+            ' '.join(fake.words(nb=words_per_query))
+            for _ in range(query_count)
+        ]
+    logging.debug(
+        'Generating query arguments took %f seconds', queries_timer.elapsed)
+
     return records, queries
 
 
