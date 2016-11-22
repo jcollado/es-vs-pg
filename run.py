@@ -116,6 +116,7 @@ def plot_results(record_count, es_query, pg_query):
     plt.title('Full-text search performance')
     plt.xlabel('Record count')
     plt.ylabel('Time (s)')
+    plt.xscale('log')
     plt.legend(loc='upper left')
     plt.show()
 
