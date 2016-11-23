@@ -255,8 +255,8 @@ def postgresql(host, rows, queries, include_hits):
         Column('vector', TSVECTOR, nullable=False),
     )
     Index(
-        'message_index',
-        func.to_tsvector('english', table.c.message),
+        'vector_index',
+        table.c.vector,
         postgresql_using='gin',
     )
     metadata.drop_all()
