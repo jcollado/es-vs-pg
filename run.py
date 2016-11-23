@@ -266,8 +266,8 @@ def postgresql(host, rows, queries, include_hits):
 
     logging.debug('Inserting %d rows...', len(rows))
     insert_query = text(
-        'INSERT INTO logs (timestamp, message, vector) '
-        'VALUES (:timestamp, :message, to_tsvector(:message))'
+        "INSERT INTO logs (timestamp, message, vector) "
+        "VALUES (:timestamp, :message, to_tsvector('english', :message))"
     )
     with Timer() as insert_timer:
         connection.execute(insert_query, rows)
